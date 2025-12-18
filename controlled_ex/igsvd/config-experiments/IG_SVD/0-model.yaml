@@ -1,0 +1,4 @@
+DATASET:
+
+  batch_size: 16
+  max_wave_length: 65536

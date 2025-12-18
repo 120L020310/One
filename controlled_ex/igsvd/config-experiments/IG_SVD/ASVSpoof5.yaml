@@ -1,0 +1,9 @@
+DATASET:
+  name: 'ASVSpoof5'
+  task: 'inner_eval'
+
+
+
+
+MODEL:
+  method_classes: 33

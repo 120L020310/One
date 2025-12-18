@@ -1,0 +1,1 @@
+from .litmodel import RawNet2_lit
