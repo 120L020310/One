@@ -3,9 +3,10 @@ import argparse
 import pytorch_lightning as pl
 import torch
 import warnings
-
-from controlled_ex.SLSforASVspoof.lit_model import XLS_R_SLS_lit
-from controlled_ex.XLSR_SSL.lit_model import XLS_R_lit
+from torch.func import functional_call
+from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
+from Oneclass_XLSR_lit_data_aug_adversarial import ALDA_OneClass_Adversarial_Lit
+from Oneclass_XLSR_lit_wepe import ALDA_OneClass_Wepe_Lit
 
 warnings.filterwarnings("ignore")
 
@@ -13,6 +14,7 @@ pl.seed_everything(42)
 torch.set_float32_matmul_precision("medium")
 torch.backends.cudnn.benchmark = True
 
+from get_true_dataset import get_true
 from models.SLSforASVspoof.lit_model_teacher import ALDA_teacher_lit
 from myutils.tools import color_print, to_list
 
@@ -40,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--grad", type=int, default=1)
     parser.add_argument("--precision", type=int, default=32)
-    parser.add_argument("--earlystop", type=int, default=5)
+    parser.add_argument("--earlystop", type=int, default=6)
     parser.add_argument("--min_epoch", type=int, default=1)
     parser.add_argument("--use_profiler", type=int, default=0)
     parser.add_argument("--use_lr_find", type=int, default=0)
@@ -56,10 +58,10 @@ if __name__ == "__main__":
     parser.add_argument("--test_noise", type=int, default=0)
     parser.add_argument("--test_noise_level", type=int, default=30)
     parser.add_argument("--test_noise_type", type=str, default="bg")
-    parser.add_argument("--ckpt_saved_filename", type=str,default="best-{epoch}-{val-auc:.4f}")
+    parser.add_argument("--ckpt_saved_filename", type=str,default="best-{epoch}-{val-eer:.4f}")
     parser.add_argument("--ckpt_train_model_task",type=str,default=None)
     parser.add_argument("--loss_fn",type=str,default="all_loss")
-    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/test_controlled_ex/1217_ALDA_teacher")
+    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/test_controlled_ex/1223_XLSR_advsarial_pgd_baseline")
     args = parser.parse_args()
     # args.gpu=[0,1]
     if args.seed != 42:
@@ -71,7 +73,7 @@ if __name__ == "__main__":
     if args.batch_size > 0:
         cfg.DATASET.batch_size = args.batch_size
     ds, dl = make_data(cfg.DATASET, args=args)
-    
+    train_ds, train_dl = get_true(["ASV2021_inner","ASV2021_LA"],"val")     
     args.profiler = (
         pl.profilers.SimpleProfiler(dirpath="./", filename="test")
         if args.use_profiler
@@ -79,7 +81,7 @@ if __name__ == "__main__":
     )
 
     # print(str(dict(cfg)))
-    model = ALDA_teacher_lit()
+    model = ALDA_OneClass_Adversarial_Lit(proj=True)
     callbacks = make_callbacks(args, cfg)
 
     if args.ckpt_saved_filename:
@@ -88,7 +90,7 @@ if __name__ == "__main__":
     logger = build_logger(args, args.root_dir)
 
     trainer = pl.Trainer(
-        max_epochs=2 if args.use_profiler else cfg.MODEL.epochs,
+        max_epochs=15 if args.use_profiler else cfg.MODEL.epochs,
         accelerator="gpu",
         devices=args.gpu,
         logger=logger,
@@ -113,14 +115,17 @@ if __name__ == "__main__":
     #     clear_folder(log_dir)
     # args.test = True
     if not args.test:
-        ckpt_path = get_ckpt_path(log_dir, theme="last") if args.resume else None
-
-        # val_dl = to_list(dl.test)[1]
+        # ckpt_path = get_ckpt_path(log_dir, theme="last") if args.resume else None
+        ckpt_path = "/home/zyz/data/test_controlled_ex/1221_XLSR_oneclass_baseline_ln_old_aoc_train/MultiView/ASV2021_LA/version_0/checkpoints/best-epoch=15-val-auc=0.9142.ckpt"
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+        state_dict = checkpoint["state_dict"]
+        missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+        val_dl = to_list(dl.test)[1]
         val_dl = dl.val
         if args.test_as_val != 999:
             val_dl = to_list(dl.test)[args.test_as_val]
 
-        trainer.fit(model, dl.train, val_dataloaders=val_dl, ckpt_path=ckpt_path)
+        trainer.fit(model,train_dl, val_dataloaders=val_dl, ckpt_path=None)
 
         write_model_summary(model, log_dir)
         ckpt_path = get_ckpt_path(log_dir, theme=args.theme)
@@ -130,7 +135,7 @@ if __name__ == "__main__":
             for test_dl in to_list(dl.test):
                 trainer.test(model, test_dl, ckpt_path=ckpt_path)
     else:
-        ckpt_path = get_ckpt_path(log_dir, theme=args.theme)
+        ckpt_path = "/home/zyz/data/test_controlled_ex/1222_XLSR_data_aug_baseline_0.1_0.1_SafeRawAugmentor_5:1/MultiView/ASV2021_LA/version_0/checkpoints/epoch=3-val-eer=0.1150.ckpt"
         trainer.trainset_wo_transform = dl.train_wo_transform
 
         if not args.collect:

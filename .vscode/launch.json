@@ -12,8 +12,8 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "--gpu", "1",
-                "--cfg", "MultiView/MLAAD_cross_lang",
+                "--gpu", "0",
+                "--cfg", "MultiView/ASV2021_LA",
                 "-v", "0",
                 // "-m","test",
                 // "-ckpt",""

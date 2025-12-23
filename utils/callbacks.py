@@ -51,7 +51,7 @@ class UniqueCheckpoint(ModelCheckpoint):
         return f"ModelCheckpoint_{self.state_key_id}"
 def training_callbacks(args):
 
-    monitor = "val-auc"
+    monitor = "val-eer"
     es = EarlyStopping
 
     callbacks = [
@@ -60,38 +60,46 @@ def training_callbacks(args):
             dirpath=None, save_top_k=0, save_last=True, save_weights_only=False
         ),
         # save best ckpt
-        ModelCheckpoint(
-            dirpath=None,
-            save_top_k=1,
-            monitor=monitor,
-            mode="max",
-            save_last=False,
-            filename="best-{epoch}-{val-auc:.4f}",
-            save_weights_only=True,
-            verbose=True,
-        ),
-        # # --- 2. 辅助 Checkpoint (负责保存每个 Epoch) ---
-        # # 使用自定义的 UniqueCheckpoint 类，避免冲突
         # UniqueCheckpoint(
         #     state_key_id="save_all_epochs", # 【关键】唯一的 ID
         #     dirpath=None,
         #     save_top_k=-1,           # 无限保留
         #     every_n_epochs=1,        # 每个 epoch 保存
         #     monitor=None,            # 不监控
-        #     filename="epoch_{epoch}-{loss_margin:.4f}-{loss_domain:.4f}",# 文件名 epoch_0.ckpt
+        #     filename="{epoch}-{val-eer:.4f}",# 文件名 epoch_0.ckpt
         #     save_weights_only=True,
         #     verbose=True,
         # ),
+        ModelCheckpoint(
+            dirpath=None,
+            save_top_k=1,
+            monitor=monitor,
+            mode="min",
+            save_last=True,
+            filename="best-{epoch}-{val-eer:.4f}",
+            save_weights_only=True,
+            verbose=True,
+        ),
+        # --- 2. 辅助 Checkpoint (负责保存每个 Epoch) ---
+        # 使用自定义的 UniqueCheckpoint 类，避免冲突
     ]
 
     if args.earlystop:
         callbacks.append(
+            # es(
+            #     monitor=monitor,
+            #     min_delta=0.001,
+            #     patience=args.earlystop if args.earlystop > 1 else 3,
+            #     mode="max",
+            #     stopping_threshold=0.998 if monitor == "val-auc+++val-acc" else 0.999,
+            #     verbose=True,
+            # )
             es(
                 monitor=monitor,
                 min_delta=0.001,
                 patience=args.earlystop if args.earlystop > 1 else 3,
-                mode="max",
-                stopping_threshold=0.998 if monitor == "val-auc+++val-acc" else 0.999,
+                mode="min",
+                stopping_threshold=0.05,
                 verbose=True,
             )
         )

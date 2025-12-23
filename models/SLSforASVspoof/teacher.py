@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForPreTraining
 
+from models.MultiView.utils import Hubert_ASR
+
 class DynamicLayerWeighting(nn.Module):
     """
     基于用户提供的 XLS_R_SLS 代码改编。
@@ -76,49 +78,96 @@ class TemporalAttentionRefinement(nn.Module):
         # 转回 (B, T, D)
         return refined_feat.transpose(1, 2), attn_weights
 
-class ALDA_Teacher(nn.Module):
+class XLSR_Teacher(nn.Module):
     """
     方案一的完整 Teacher 模型封装
     结构：Frozen XLS-R -> Learnable Layer Weighting -> Learnable Temporal Attention
     """
-    def __init__(self):
-        super(ALDA_Teacher, self).__init__()
+    def __init__(self,proj=False):
+        super(XLSR_Teacher, self).__init__()
         
         # 1. Backbone: XLS-R (冻结)
         self.xlsr = AutoModelForPreTraining.from_pretrained("/home/zyz/data/wav2vec2-xls-r-300m")
-        # self.xlsr.eval() # 设为评估模式
-        # for param in self.xlsr.parameters():
-        #     param.requires_grad = False # 冻结参数
-            
         input_dim = 1024 # XLS-R-300m output dim
         
-        # 2. 附加模块 (Trainable)
         # 学习每一层的重要性
         self.layer_weighting = DynamicLayerWeighting(input_dim=input_dim, num_layers=25)
         
-        # 3. 附加模块 (Trainable)
         # 学习每一帧的重要性
         self.temporal_refiner = TemporalAttentionRefinement(input_dim=input_dim, attention_channels=128)
+        if proj:
+            self.projector = nn.Sequential(
+                nn.Linear(input_dim, input_dim),
+                nn.LayerNorm(input_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(input_dim, 256)  # 降维通常有助于聚类，设为 256 或 128
+            )
+        self.proj=proj
 
     def forward(self, x):
-        # x: raw waveform (B, T_raw)
-        
-        # 1. 提取所有层特征
-        # with torch.no_grad():
+        if x.dim()==3:
+            x = x.squeeze(1)
         outputs = self.xlsr(x, output_hidden_states=True)
-        # hidden_states 是一个包含 25 个 tensor 的 tuple
         hidden_states = outputs.hidden_states[1:] 
         
         # 2. 动态层融合 (Gradient 流经此处)
         fused_feat, layer_w = self.layer_weighting(hidden_states)
         
         # 3. 时序注意力精炼 (Gradient 流经此处)
-        final_feat, time_w = self.temporal_refiner(fused_feat)
-        
-        # 返回最终特征供 Student 模仿
+        refined_feat, time_w = self.temporal_refiner(fused_feat)
+        representation = refined_feat.mean(dim=1)
+        if self.proj:
+            representation = self.projector(representation)
         # 也可以返回 layer_w 和 time_w 用于可视化分析
         return {
-            'final_feat': final_feat,  # Shape: (B, T, D)
+            'final_feat': representation,  # Shape: (B, D)
+            'hidden_states': hidden_states,
+            'layer_weights': layer_w,      # Shape: (B, 25)
+            'time_weights': time_w         # Shape: (B, 1, T)
+        }
+
+class Hubert_Student(nn.Module):
+    """
+    方案一的完整 Teacher 模型封装
+    结构：Frozen XLS-R -> Learnable Layer Weighting -> Learnable Temporal Attention
+    """
+    def __init__(self, proj=False):
+        super(Hubert_Student, self).__init__()
+        
+        # 1. Backbone: XLS-R (冻结)
+        self.hubert = Hubert_ASR()
+        input_dim = 1024 # XLS-R-300m output dim
+        
+        # 学习每一层的重要性
+        self.layer_weighting = DynamicLayerWeighting(input_dim=input_dim, num_layers=24)
+        
+        # 学习每一帧的重要性
+        self.temporal_refiner = TemporalAttentionRefinement(input_dim=input_dim, attention_channels=128)
+        if proj:
+            self.projector = nn.Sequential(
+                nn.Linear(input_dim, input_dim),
+                nn.LayerNorm(input_dim),
+                nn.ReLU(inplace=True),
+                nn.Linear(input_dim, input_dim)  # 降维通常有助于聚类，设为 256 或 128
+            )
+        self.proj=proj
+
+    def forward(self, x):
+        if x.dim()==3:
+            x = x.squeeze(1)
+        final_feat, hidden_states = self.hubert(x)
+        
+        # 2. 动态层融合 (Gradient 流经此处)
+        fused_feat, layer_w = self.layer_weighting(hidden_states)
+        
+        # 3. 时序注意力精炼 (Gradient 流经此处)
+        refined_feat, time_w = self.temporal_refiner(fused_feat)
+        representation = refined_feat.mean(dim=1)
+        if self.proj:
+            representation = self.projector(representation)
+        return {
+            'final_feat': representation,  # Shape: (B, D)
+            'hidden_states': hidden_states,
             'layer_weights': layer_w,      # Shape: (B, 25)
             'time_weights': time_w         # Shape: (B, 1, T)
         }

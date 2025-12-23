@@ -59,22 +59,22 @@ class BinaryClassification(pl.LightningModule):
             batch_res = self._shared_pred(batch, batch_idx)
 
         label = batch["label"]
-        loss = self.calcuate_loss(batch_res, batch)
+        loss = self.calcuate_loss(batch_res, batch,stage=stage)
 
         if not isinstance(loss, dict):
             loss = {"loss": loss}
 
-        suffix = "" if dataloader_idx == 0 else f"-dl{dataloader_idx}"
-        self.log_dict(
-            {f"{stage}-{key}{suffix}": loss[key] for key in loss},
-            # on_step=True if stage=='train' else False,
-            on_step=False,
-            on_epoch=True,
-            logger=True,
-            prog_bar=True,
-            add_dataloader_idx=False,
-            batch_size=batch["label"].shape[0],
-        )
+        # suffix = "" if dataloader_idx == 0 else f"-dl{dataloader_idx}"
+        # self.log_dict(
+        #     {f"{stage}-{key}{suffix}": loss[key] for key in loss},
+        #     # on_step=True if stage=='train' else False,
+        #     on_step=False,
+        #     on_epoch=True,
+        #     logger=True,
+        #     prog_bar=True,
+        #     add_dataloader_idx=False,
+        #     batch_size=batch["label"].shape[0],
+        # )
         batch_res.update(loss)
         return batch_res
 

@@ -31,15 +31,9 @@ class TinyVit(nn.Module):
         super().__init__()
 
         self.model = tiny_vit_21m_224(pretrained=True)
-        self.post_extractor = post_process(hidden_dim=3072)
-        # from torchvision.models import resnet18
-        # model = resnet18(weights='DEFAULT')
-        # sd = model.state_dict()
-        # sd['conv1.weight'] = torch.mean(sd['conv1.weight'], dim=1, keepdims=True)
-        # _ = self.model.load_state_dict(sd, strict=False)
+        # self.post_extractor = post_process(hidden_dim=3072)
 
         self.spectrogram = torchaudio.transforms.Spectrogram(n_fft=512, hop_length=187)
-        # self.spectrogram = torchaudio.transforms.Spectrogram(n_fft=512, hop_length=353) # original
         self.verbose = verbose
         self.noise_adder = AddGaussianNoise(std=0.05)
         self.spec_aug = SpecAugmentBatchTransform.from_policy("ss")
@@ -47,7 +41,7 @@ class TinyVit(nn.Module):
 
     def preprocess(self, x, stage="test"):
         # x = self.model.spectrogram(x)
-        x = self.spectrogram(x)
+        x = self.spectrogram(x.unsqueeze(1))
         if stage == "train":
              x = self.noise_adder(x)
         x = F.interpolate(x, size=(224, 224), mode="bilinear")
@@ -84,9 +78,12 @@ class TinyVit(nn.Module):
         x = self.model.norm_head(x)
         # x = self.post_extractor(x)
         # x = x.mean(1)
-        # x = self.feature_norm(x)
         return x
-
+    
+    def forward(self,x):
+        x,raw_spec = self.compute_stage1(x)
+        x = self.compute_rest_stage(x)
+        return x
 
     def feature_norm(self, code):
         code_norm = code.norm(p=2, dim=1, keepdim=True) / 10

@@ -55,15 +55,65 @@ class AOCloss(nn.Module):
             loc = 1 + (-torch.sum(bonafide_similarity) / Mb) + (torch.sum(fake_similarity) / Ms)
         return loc
 
-    def forward(self, embeddings, labels=None):
-        bonafide_embeddings = embeddings[labels == 0]
-        fake_embeddings = embeddings[labels == 1]
-
+    def forward(self, embeddings, labels=None,stage = "train"):
+        bonafide_embeddings = embeddings[labels == 1]
+        fake_embeddings = embeddings[labels == 0]
+        # if stage =="train":
         self.update_centroid(bonafide_embeddings)
         loss = self.one_class_loss(bonafide_embeddings, fake_embeddings)
         return loss
 
+class AOCloss_plus(nn.Module):
+    def __init__(self, embedding_dim=256, momentum=0.9):
+        super(AOCloss_plus, self).__init__()
+        self.embedding_dim = embedding_dim
+        self.centroid = None
+        self.initialized = False
+        self.momentum = momentum # 动量系数，越小更新越快，0.9 比较平滑
 
+    def update_centroid(self, bonafide_embeddings):
+        # 此时 bonafide_embeddings 已经是 (Batch, Dim)
+        if bonafide_embeddings.shape[0] == 0:
+            return
+
+        # 计算当前 Batch 的中心
+        current_batch_center = bonafide_embeddings.mean(dim=0).detach()
+
+        if not self.initialized or self.centroid.sum() == 0:
+            self.centroid = current_batch_center
+            self.initialized = True
+        else:
+            # EMA 更新公式： Old * m + New * (1-m)
+            # 这样 Centroid 永远紧跟最近几个 Batch 的特征分布，不会被几十个 Epoch 前的旧参数拖累
+            self.centroid = (self.momentum * self.centroid) + \
+                            ((1 - self.momentum) * current_batch_center)
+
+    def forward(self, embeddings, labels=None, stage="train"):
+        # 确保 embeddings 已经做过 L2 Normalize (在外部做)
+        # 或者在这里加: embeddings = F.normalize(embeddings, p=2, dim=1)
+        
+        bonafide_embeddings = embeddings[labels == 1]
+        fake_embeddings = embeddings[labels == 0]
+
+        if stage == "train" and bonafide_embeddings.shape[0] > 0:
+            self.update_centroid(bonafide_embeddings)
+        # self.update_centroid(bonafide_embeddings)
+
+        # 归一化 Centroid
+        centroid_norm = F.normalize(self.centroid, p=2, dim=0)
+        
+        # 计算 Loss
+        # 训练时我们假设全是 bonafide (根据你的逻辑)
+        # Loss = 1 - CosSim(x, c)
+        if bonafide_embeddings.shape[0] > 0:
+            # 这里的逻辑是：让 Bonafide 靠近中心
+            # 1 - mean(sim) 等价于 mean(dist)
+            bonafide_sim = torch.matmul(bonafide_embeddings, centroid_norm)
+            loss = 1 - bonafide_sim.mean()
+        else:
+            loss = torch.tensor(0.0, device=embeddings.device, requires_grad=True)
+            
+        return loss
 def infer_one_class(DNN_model, new_samples):
     """
     Perform inference using a trained one-class ACS model for a batch of samples.

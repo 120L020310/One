@@ -66,12 +66,12 @@ from .utils import TimeFrequencyReconstructionLoss
 
 
 # + editable=true slideshow={"slide_type": ""}
-try:
-    from .multiView_model_pro import MultiViewModel_pro
-    from .utils import TimeFrequencyReconstructionLoss
-except ImportError:
-    from multiView_model_pro import MultiViewModel_pro
-    from utils import TimeFrequencyReconstructionLoss
+# try:
+#     from .multiView_model_pro import MultiViewModel_pro
+#     from .utils import TimeFrequencyReconstructionLoss
+# except ImportError:
+#     from multiView_model_pro import MultiViewModel_pro
+#     from utils import TimeFrequencyReconstructionLoss
 
 class DynamicHead(nn.Module):
     def __init__(self,feat_dim):

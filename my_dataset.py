@@ -12,13 +12,14 @@ from myutils.datasets.audio._ASV2021_LA import ASV2021LA_AudioDs
 from myutils.datasets.audio._ASV5 import ASVSpoof5_AudioDs
 from myutils.datasets.audio._MLAAD import MLAAD_AudioDs
 
-def get_dataset_and_loader_ASV2021_inner(label):
+def get_dataset_and_loader_ASV2021_inner(label,stage):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, default=f"MultiView/ASV2021_inner")
     parser.add_argument("--test_noise", type=int, default=0)
     parser.add_argument("--gpu", type=int, nargs="+", default=0)
     parser.add_argument("-v", "--version", type=int, default=None)
     args = parser.parse_args()
+    args.cfg = "MultiView/ASV2021_inner"
     cfg = get_cfg_defaults(
         "config/experiments/%s.yaml" % args.cfg, ablation=None
     )
@@ -47,18 +48,19 @@ def get_dataset_and_loader_ASV2021_inner(label):
             test_loaders.append(loader)
 
         return dl_train,dl_val,test_loaders
-    ds = WaveDataset(data=ds,normalize=True,transform=transforms["train"])
+    ds = WaveDataset(data=ds,normalize=True,transform=transforms[stage])
     dl = DataLoader(ds, batch_size=32, shuffle=False, num_workers=8)
     return ds,dl
 
 
-def get_dataset_and_loader_ASV2021_LA(label):
+def get_dataset_and_loader_ASV2021_LA(label,stage):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, default=f"MultiView/ASV2021_LA")
     parser.add_argument("--test_noise", type=int, default=0)
     parser.add_argument("--gpu", type=int, nargs="+", default=0)
     parser.add_argument("-v", "--version", type=int, default=None)
     args = parser.parse_args()
+    args.cfg = "MultiView/ASV2021_LA"
     cfg = get_cfg_defaults(
         "config/experiments/%s.yaml" % args.cfg, ablation=None
     )
@@ -78,7 +80,7 @@ def get_dataset_and_loader_ASV2021_LA(label):
 
         return dl_train,dl_val,[dl_test]
     else:
-        ds = WaveDataset(data=ds,normalize=True,transform=transforms["val"])
+        ds = WaveDataset(data=ds,normalize=True,transform=transforms[stage])
         dl = DataLoader(ds, batch_size=32, shuffle=False, num_workers=8)
         return ds, dl
 
@@ -97,17 +99,20 @@ def get_dataset_and_loader_ASV2021_LA(label):
 # dl = DataLoader(ds, batch_size=64, shuffle=False, num_workers=8)
 # print(dl)
 
-def get_dataset_and_loader_ASV5(label):
+def get_dataset_and_loader_ASV5(label,stage):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, default=f"MultiView/ASVSpoof5")
     parser.add_argument("--test_noise", type=int, default=0)
+    parser.add_argument("--gpu", type=int, nargs="+", default=0)
+    parser.add_argument("-v", "--version", type=int, default=None)
     args = parser.parse_args()
+    args.cfg = "MultiView/ASVSpoof5"
     cfg = get_cfg_defaults(
         "config/experiments/%s.yaml" % args.cfg, ablation=None
     )
     dataset = ASVSpoof5_AudioDs(root_path=cfg.DATASET.dataset_cfg.root_path)
     if label=="fake":   ds = dataset.get_splits(only_test_vocoder=True)
-    # elif label=="real": ds = asv2021.get_true_train()
+    elif label=="real": ds = dataset.get_true_train()
     # elif label=="val": ds = asv2021.get_splits_val()
     elif label=="split": ds = dataset.get_splits(only_test_vocoder=True)
     transforms = build_transforms(cfg.DATASET.transforms, args=args)
@@ -131,11 +136,11 @@ def get_dataset_and_loader_ASV5(label):
 
         return dl_train,dl_val,test_loaders
     else:
-        ds = WaveDataset(data=ds,normalize=True,transform=transforms["val"])
+        ds = WaveDataset(data=ds,normalize=True,transform=transforms[stage])
         dl = DataLoader(ds, batch_size=32, shuffle=False, num_workers=8)
         return ds, dl
     
-def get_dataset_and_loader_MLAAD(label):
+def get_dataset_and_loader_MLAAD(label,stage):
     parser = argparse.ArgumentParser()
     parser.add_argument("--cfg", type=str, default=f"MultiView/MLAAD_cross_lang")
     parser.add_argument("--test_noise", type=int, default=0)
@@ -171,7 +176,7 @@ def get_dataset_and_loader_MLAAD(label):
 
         return dl_train,dl_val,test_loaders
     else:
-        ds = WaveDataset(data=ds,normalize=True,transform=transforms["train"])
+        ds = WaveDataset(data=ds,normalize=True,transform=transforms[stage])
         dl = DataLoader(ds, batch_size=32, shuffle=False, num_workers=8)
         return ds, dl
     

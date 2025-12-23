@@ -169,7 +169,16 @@ class ASVSpoof5_AudioDs(AudioDataset):
     #     sub_data.append(tts_data)
     #     sub_data.append(at_data)
     #     return sub_data
-    
+    def get_true_train(self, data=None):
+        data = data if data is not None else self.data.query("split == 'train'")
+        sub_datas = []
+        for vocoder in VOCODERs[:1]:
+            _data = data.query(
+                f"label == 1"
+            ).reset_index(drop=True)
+            sub_datas.append(_data)
+        sub_datas = pd.concat(sub_datas, axis=0, ignore_index=True)
+        return sub_datas
 
     def get_splits(self, train_val_rate_in_train_tsv=0.8, 
                    use_dev_as_test=False, 

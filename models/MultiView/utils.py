@@ -62,13 +62,15 @@ class Hubert_ASR(nn.Module):
         position_embeddings = self.model.encoder.pos_conv_embed(hidden_states)
         hidden_states = hidden_states + position_embeddings
         hidden_states = self.model.encoder.dropout(hidden_states)
+        hidden_states_list = []
         for layer in self.model.encoder.layers:
             layer_outputs = layer(
                         hidden_states, attention_mask=None, output_attentions=False
                     )
             hidden_states = layer_outputs[0]
+            hidden_states_list.append(hidden_states)
         hidden_states = self.model.encoder.layer_norm(hidden_states)
-        return hidden_states.mean(1)
+        return hidden_states.mean(1),hidden_states_list
 
 class WavLM_1D(nn.Module):
     def __init__(
