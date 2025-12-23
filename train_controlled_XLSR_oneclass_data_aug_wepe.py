@@ -72,6 +72,7 @@ if __name__ == "__main__":
     )
     if args.batch_size > 0:
         cfg.DATASET.batch_size = args.batch_size
+        cfg.DATASET.test_batch_size = args.batch_size
     ds, dl = make_data(cfg.DATASET, args=args)
     train_ds, train_dl = get_true(["ASV2021_inner","ASV2021_LA"],"val")     
     args.profiler = (

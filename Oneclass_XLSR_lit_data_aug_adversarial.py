@@ -27,57 +27,60 @@ class ALDA_OneClass_Adversarial_Lit(DeepfakeAudioClassification):
         self.register_buffer("centroid", torch.zeros(self.embed_dim))
     def generate_pgd_attack(self, audio, epsilon=0.01, alpha=0.002, num_steps=7):
         """
-        生成 PGD 对抗样本 (修复版)
+        生成 PGD 对抗样本 (最终修复版：解决 validation 报错 + 梯度污染)
         """
-        # 1. 复制并开启梯度
-        # 注意：这里 detach() 很重要，防止梯度传回原来的 audio
-        delta = torch.zeros_like(audio).uniform_(-epsilon, epsilon)
-        delta.requires_grad = True
+        # --- 1. 准备工作 ---
+        original_mode = self.model.training 
+        self.model.eval() # 必须 eval，冻结 BN 统计量
         
-        # 暂时将模型设为评估模式，因为我们只想要对 Input 的梯度，不更新 BatchNorm
-        # 但如果是训练对抗样本，保持 train 模式也可以，视具体策略而定
-        # self.model.eval() 
+        # 暂时关闭模型参数的梯度计算
+        # 注意：这仅仅是不计算权重的梯度，但我们需要计算图来回传给 Input
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        # --- 2. 强制开启梯度上下文 (关键修复) ---
+        # 即使在 validation_step (默认 no_grad) 中调用，这里也会强制开启计算图构建
+        with torch.enable_grad():
+            
+            # 初始化扰动
+            delta = torch.zeros_like(audio).uniform_(-epsilon, epsilon)
+            delta.requires_grad = True
+            
+            # --- 3. 迭代攻击 ---
+            for _ in range(num_steps):
+                if delta.grad is not None:
+                    delta.grad.zero_()
+                    
+                # 前向传播
+                noisy_audio = audio + delta
+                res = self.model(noisy_audio)
+                
+                # 计算特征和距离
+                feat = F.normalize(res["final_feat"], p=2, dim=1)
+                
+                # 注意：self.loss_fn.centroid 也是 Parameter，需要 detach 或者保证不求导
+                centroid = F.normalize(self.loss_fn.centroid.to(feat.device), p=2, dim=0)
+                
+                # Loss = Cosine Similarity (目标: 最小化 Sim)
+                loss = torch.matmul(feat, centroid).mean()
+                
+                # 反向传播 (因为有 enable_grad，这里 loss 会有 grad_fn，不会报错了)
+                loss.backward()
+                
+                # PGD 更新 (In-place update)
+                with torch.no_grad():
+                    delta_grad = delta.grad.detach()
+                    delta.data = delta.data - alpha * delta_grad.sign()
+                    delta.data = torch.clamp(delta.data, min=-epsilon, max=epsilon)
         
-        # 2. 迭代攻击
-        for _ in range(num_steps):
-            # 每次反向传播前，必须清零梯度
-            # 注意：我们要清零的是 delta 的梯度，不是模型的
-            if delta.grad is not None:
-                delta.grad.zero_()
-                
-            # 前向传播
-            noisy_audio = audio + delta
+        # --- 4. 收尾工作 ---
+        # 恢复模型参数的梯度需求
+        for param in self.model.parameters():
+            param.requires_grad = True
             
-            # 计算特征和距离
-            res = self.model(noisy_audio)
-            feat = F.normalize(res["final_feat"], p=2, dim=1)
-            centroid = F.normalize(self.loss_fn.centroid.to(feat.device), p=2, dim=0)
-            
-            # Loss: 我们希望 Maximize Distance (Minimize Similarity)
-            # PGD 是梯度上升 (Gradient Ascent) 来增加 Loss
-            # 或者梯度下降 (Gradient Descent) 来减小 Similarity
-            loss = torch.matmul(feat, centroid).mean()
-            
-            # 反向传播，计算 d(Sim)/d(delta)
-            loss.backward()
-            
-            with torch.no_grad():
-                # --- 核心修复 ---
-                # 使用 .data 进行原地更新，不破坏计算图结构
-                delta_grad = delta.grad.detach()
-                
-                # 因为我们要让 Similarity 变小 (远离中心)，我们要沿着梯度反方向走
-                # Sim 越小越好 -> x = x - alpha * sign(grad_sim)
-                delta.data = delta.data - alpha * delta_grad.sign()
-                
-                # Projection (截断到 epsilon 球内)
-                delta.data = torch.clamp(delta.data, min=-epsilon, max=epsilon)
-                
-                # 这一步其实不需要了，因为上面判断了 if delta.grad is not None
-                # delta.grad.zero_() 
-        
-        # 恢复模型状态 (如果有切换的话)
-        # self.model.train()
+        # 恢复模型原本的训练状态
+        self.model.train(original_mode)
+        self.model.zero_grad() 
         
         return (audio + delta).detach()
     def configure_loss_fn(self):
@@ -205,4 +208,60 @@ class ALDA_OneClass_Adversarial_Lit(DeepfakeAudioClassification):
             batch_size=batch["label"].shape[0],
         )
         return batch_res
-    
+    def validation_step(self, batch, batch_idx):
+        # 1. 执行前向传播 (包含 PGD 攻击)
+        # 必须开启梯度以生成对抗样本
+        with torch.enable_grad():
+            batch_res = self._shared_pred(batch, batch_idx, stage="val")
+        
+        # 2. 获取特征 [CRITICAL FIX: DETACH]
+        # 必须使用 .detach()，否则计算图会一直保留在显存中导致 OOM
+        clean_feat = batch_res["final_feat"].detach()
+        noisy_feat = batch_res["feat_noisy"].detach()
+        
+        # 3. 归一化
+        clean_norm = F.normalize(clean_feat, p=2, dim=1)
+        noisy_norm = F.normalize(noisy_feat, p=2, dim=1)
+        
+        # 确保 centroid 在正确的设备上
+        centroid = self.centroid.to(clean_feat.device)
+        centroid = F.normalize(centroid, p=2, dim=0)
+
+        # 4. 计算两个分数
+        # Score 1: 聚类分数 (离中心越远越假)
+        # Real 靠近中心 -> sim 大 -> dist 小
+        dist_cluster = 1.0 - torch.matmul(clean_norm, centroid)
+        
+        # Score 2: 一致性分数 (被攻击后跑得越远越假)
+        # Real 免疫攻击 -> sim 大 -> dist 小
+        dist_consistency = 1.0 - (clean_norm * noisy_norm).sum(dim=1)
+        
+        # 5. 融合分数 (Anomaly Score)
+        # 这是一个超参数，建议你在初期可以分别观察两个分数，或者设为可调参数
+        # 这里的 2.0 意味着你更看重 "鲁棒性" 这一特征
+        anomaly_score = dist_cluster + 2.0 * dist_consistency
+        
+        # 6. 记录 Log 用于监控 (分项记录非常有必要)
+        # 使用 batch_size 参数确保 log 准确
+        bs = batch['label'].shape[0]
+        
+        # 记录 Real 样本的分数 (越低越好)
+        real_mask = (batch['label'] == 1)
+        if real_mask.sum() > 0:
+            self.log("val/score_cluster_real", dist_cluster[real_mask].mean(), batch_size=bs)
+            self.log("val/score_consist_real", dist_consistency[real_mask].mean(), batch_size=bs)
+            self.log("val/total_score_real", anomaly_score[real_mask].mean(), batch_size=bs)
+
+        # 记录 Fake 样本的分数 (越高越好)
+        fake_mask = (batch['label'] == 0)
+        if fake_mask.sum() > 0:
+            self.log("val/score_cluster_fake", dist_cluster[fake_mask].mean(), batch_size=bs)
+            self.log("val/score_consist_fake", dist_consistency[fake_mask].mean(), batch_size=bs)
+            self.log("val/total_score_fake", anomaly_score[fake_mask].mean(), batch_size=bs)
+
+        # 7. 返回结果
+        # 返回 detach 后的 tensor 或 cpu tensor，方便后续 concat 计算 AUC
+        return {
+            "logit": anomaly_score, # 已经是 detached 的
+            "label": batch["label"]
+        }
