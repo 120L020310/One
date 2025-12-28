@@ -469,7 +469,7 @@ def build_transforms(cfg=None, args=None):
 
     res = {
         "train": [
-            # RandomSpeed(min_speed=0.5, max_speed=2.0, p=0.5),
+            RandomSpeed(min_speed=0.5, max_speed=2.0, p=0.5),
             # RandomAudioCompression(p=0.9),
             # RandomSpeed(min_speed=0.5, max_speed=2.0, p=1.0),
             RandomAudioClip(length=48000),

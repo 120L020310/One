@@ -51,7 +51,7 @@ class UniqueCheckpoint(ModelCheckpoint):
         return f"ModelCheckpoint_{self.state_key_id}"
 def training_callbacks(args):
 
-    monitor = "val-auc"
+    monitor = "val-eer"
     es = EarlyStopping
 
     callbacks = [
@@ -64,24 +64,24 @@ def training_callbacks(args):
             dirpath=None,
             save_top_k=1,
             monitor=monitor,
-            mode="max",
+            mode="min",
             save_last=False,
-            filename="best-{epoch}-{val-auc:.4f}",
+            filename="best-{epoch}-{val-eer:.4f}",
             save_weights_only=True,
             verbose=True,
         ),
-        # # --- 2. 辅助 Checkpoint (负责保存每个 Epoch) ---
-        # # 使用自定义的 UniqueCheckpoint 类，避免冲突
-        # UniqueCheckpoint(
-        #     state_key_id="save_all_epochs", # 【关键】唯一的 ID
-        #     dirpath=None,
-        #     save_top_k=-1,           # 无限保留
-        #     every_n_epochs=1,        # 每个 epoch 保存
-        #     monitor=None,            # 不监控
-        #     filename="epoch_{epoch}-{loss_margin:.4f}-{loss_domain:.4f}",# 文件名 epoch_0.ckpt
-        #     save_weights_only=True,
-        #     verbose=True,
-        # ),
+        # --- 2. 辅助 Checkpoint (负责保存每个 Epoch) ---
+        # 使用自定义的 UniqueCheckpoint 类，避免冲突
+        UniqueCheckpoint(
+            state_key_id="save_all_epochs", # 【关键】唯一的 ID
+            dirpath=None,
+            save_top_k=-1,           # 无限保留
+            every_n_epochs=1,        # 每个 epoch 保存
+            monitor=None,            # 不监控
+            filename="{epoch}-{val-auc:.4f}-{val-eer:.4f}",# 文件名 epoch_0.ckpt
+            save_weights_only=True,
+            verbose=True,
+        ),
     ]
 
     if args.earlystop:

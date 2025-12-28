@@ -59,7 +59,7 @@ class BinaryClassification(pl.LightningModule):
             batch_res = self._shared_pred(batch, batch_idx)
 
         label = batch["label"]
-        loss = self.calcuate_loss(batch_res, batch)
+        loss = self.calcuate_loss(batch_res, batch,stage=stage)
 
         if not isinstance(loss, dict):
             loss = {"loss": loss}

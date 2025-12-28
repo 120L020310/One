@@ -3,7 +3,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
-from models.SLSforASVspoof.teacher import ALDA_Teacher
+from models.SLSforASVspoof.teacher import XLSR_Teacher
 from models.SLSforASVspoof.teacher_strict import ALDA_Teacher_Strict
 from myutils.torch.deepfake_detection.audio import DeepfakeAudioClassification
 from myutils.zyz.aocloss import AOCloss
@@ -19,7 +19,7 @@ class ALDA_teacher_lit(DeepfakeAudioClassification):
         
         self.cfg = cfg
         self.args = args
-        self.model = ALDA_Teacher()
+        self.model = XLSR_Teacher()
         self.configure_loss_fn()
         self.configure_normalizer()
         self.cls_h = torch.nn.Linear(1024,2)

@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModelForPreTraining
 
-from models.SLSforASVspoof.teacher import ALDA_Teacher
+from models.SLSforASVspoof.teacher import XLSR_Teacher
 from myutils.torch.deepfake_detection.audio import DeepfakeAudioClassification
 from student import SimpleStudent
 
@@ -17,7 +17,7 @@ class XLS_R_ALDA_lit(DeepfakeAudioClassification):
         self.args = args
         
         # 1. 初始化模型
-        self.teacher = ALDA_Teacher()
+        self.teacher = XLSR_Teacher()
         self.student = SimpleStudent(output_dim=1024)
         if teacher_ckpt_path:
             self.load_pretrained_teacher(teacher_ckpt_path)
