@@ -4,7 +4,8 @@ import pytorch_lightning as pl
 import torch
 import warnings
 from torch.func import functional_call
-from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
+
+from models.OneClass.Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
 
 warnings.filterwarnings("ignore")
 
@@ -12,7 +13,7 @@ pl.seed_everything(42)
 torch.set_float32_matmul_precision("medium")
 torch.backends.cudnn.benchmark = True
 
-from get_true_dataset import get_true
+from data.get_true_dataset import get_true
 from myutils.tools import color_print, to_list
 
 from config import get_cfg_defaults

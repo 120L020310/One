@@ -4,16 +4,14 @@ import pytorch_lightning as pl
 import torch
 import warnings
 
-from ALDA_lit import XLS_R_ALDA_lit
-from Oneclass_XLSR_lit import XLSR_OneClass_Lit
-
+from models.OneClass.Oneclass_XLSR_lit import XLSR_OneClass_Lit
 warnings.filterwarnings("ignore")
 
 pl.seed_everything(42)
 torch.set_float32_matmul_precision("medium")
 torch.backends.cudnn.benchmark = True
 
-from get_true_dataset import get_true
+from data.get_true_dataset import get_true
 from models.SLSforASVspoof.lit_model_teacher import ALDA_teacher_lit
 from myutils.tools import color_print, to_list
 

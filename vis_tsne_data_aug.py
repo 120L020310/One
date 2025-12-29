@@ -8,14 +8,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.manifold import TSNE
 from matplotlib.collections import LineCollection
+
+from models.OneClass.Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
 warnings.filterwarnings("ignore")
-from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_detach_noisy
 from config.config import get_cfg_defaults
 from data.make_dataset import make_data
 from myutils.tools._common import to_list
-
-# ===== 1) 你的 ckpt 路径 =====
-ckpt_path = "/home/zyz/data/dim=128_test/data_aug_SafeRawAugmentor(noise_intensity=0.1, mask_ratio=0.1)_5:1/1227_baseline_detach_noisy/MultiView/ASV2021_LA/version_0/checkpoints/epoch=7-val-auc=0.9602-val-eer=0.0890_no_post_std.ckpt"
 
 
 # ===== 2) 导入你的模型类（确保此脚本运行环境能 import 到这些定义）=====
@@ -227,10 +225,10 @@ def plot_tsne_with_links(centroid, real_clean, real_aug, fake_clean, fake_aug,
     plt.show()
 
 
-def main(dataloader,idx):
+def main(dataloader,idx,ckpt_path):
     # ===== 3) 加载模型 =====
     # Lightning: 推荐 strict=False，避免你代码改动导致的 key 不一致
-    model = ALDA_OneClass_AugImmunity_Lit_detach_noisy.load_from_checkpoint(
+    model = ALDA_OneClass_AugImmunity_Lit.load_from_checkpoint(
         ckpt_path,
         map_location="cpu",
         strict=True
@@ -312,6 +310,7 @@ if __name__ == "__main__":
         cfg.DATASET.test_batch_size = args.batch_size
     ds, dl = make_data(cfg.DATASET, args=args)
     idx = 0
+    ckpt_path = "/home/zyz/data/dim=128_test/data_aug_SafeRawAugmentor(noise_intensity=0.1, mask_ratio=0.1)_5:1/1227_baseline_detach_noisy/MultiView/ASV2021_LA/version_0/checkpoints/epoch=7-val-auc=0.9602-val-eer=0.0890_no_post_std.ckpt"
     for test_dl in to_list(dl.test)[:2]:
-        main(dataloader=test_dl, idx=idx)
+        main(dataloader = test_dl, idx = idx, ckpt_path = ckpt_path)
         idx+=1

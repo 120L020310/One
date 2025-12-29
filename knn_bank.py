@@ -10,14 +10,15 @@ from sklearn.metrics import roc_curve, auc
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from tqdm import tqdm
+
+from data.get_true_dataset import get_true
+from models.OneClass.Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
 warnings.filterwarnings("ignore")
 # ==========================================
 # 1. 导入你的项目依赖
 # ==========================================
-from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_detach_noisy
 from config.config import get_cfg_defaults
 from data.make_dataset import make_data
-from get_true_dataset import get_true
 
 # ==========================================
 # 2. 核心函数
@@ -231,7 +232,7 @@ if __name__ == "__main__":
     
     # 2. 模型
     print(f"Loading model from {args.checkpoint} ...")
-    model = ALDA_OneClass_AugImmunity_Lit_detach_noisy()
+    model = ALDA_OneClass_AugImmunity_Lit()
     sd = torch.load(args.checkpoint, map_location="cpu")["state_dict"]
     # if "loss_fn.centroid" in sd: sd["centroid"] = sd.pop("loss_fn.centroid")
     model.load_state_dict(sd, strict=True)

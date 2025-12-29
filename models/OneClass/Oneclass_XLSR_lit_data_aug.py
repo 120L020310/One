@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch.func import functional_call
 import torchaudio
-from Data_Aug import DigitalArtifactAugmentor, RobustDataAugmentor, SafeRawAugmentor, TransformerHardAugmentor
+from data.Data_Aug import DigitalArtifactAugmentor, RobustDataAugmentor, SafeRawAugmentor, TransformerHardAugmentor
 from models.SLSforASVspoof.teacher import XLSR_Teacher
 from myutils.torch.deepfake_detection.audio import DeepfakeAudioClassification
 from myutils.zyz.aocloss import AOCloss, AOCloss_plus, AOCloss_plus_soft
