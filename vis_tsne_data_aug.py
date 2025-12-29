@@ -9,7 +9,7 @@ from tqdm import tqdm
 from sklearn.manifold import TSNE
 from matplotlib.collections import LineCollection
 warnings.filterwarnings("ignore")
-from Oneclass_XLSR_lit_data_aug_new_detach_noisy import ALDA_OneClass_AugImmunity_Lit_detach_noisy
+from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_detach_noisy
 from config.config import get_cfg_defaults
 from data.make_dataset import make_data
 from myutils.tools._common import to_list

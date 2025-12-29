@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 # ==========================================
 # 1. 导入你的项目依赖
 # ==========================================
-from Oneclass_XLSR_lit_data_aug_new_detach_noisy import ALDA_OneClass_AugImmunity_Lit_detach_noisy
+from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_detach_noisy
 from config.config import get_cfg_defaults
 from data.make_dataset import make_data
 from get_true_dataset import get_true
@@ -253,16 +253,15 @@ if __name__ == "__main__":
 
     # 5. 评估与可视化
     for i, test_loader in enumerate(test_dataloaders):
-        if i==6:
-            print(f"\nProcessing Test Set {i}...")
-            save_name = f"tsne_best_0890/tsne_knn_set{i}.png"
-            
-            # 开启可视化 visualize=True
-            evaluate_knn(
-                model, 
-                memory_bank, 
-                test_loader, 
-                device, 
-                visualize=True, 
-                save_name=save_name
-            )
+        print(f"\nProcessing Test Set {i}...")
+        save_name = f"tsne_best_0890/tsne_knn_set{i}.png"
+        
+        # 开启可视化 visualize=True
+        evaluate_knn(
+            model, 
+            memory_bank, 
+            test_loader, 
+            device, 
+            visualize=True, 
+            save_name=save_name
+        )

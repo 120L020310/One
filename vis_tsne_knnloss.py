@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 import warnings
 
-from Oneclass_XLSR_lit_data_aug_new_detach_noisy import ALDA_OneClass_AugImmunity_Lit_detach_noisy
+from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_detach_noisy
 
 warnings.filterwarnings("ignore")
 import numpy as np

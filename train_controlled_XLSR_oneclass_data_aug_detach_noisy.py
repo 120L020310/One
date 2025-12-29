@@ -4,8 +4,7 @@ import pytorch_lightning as pl
 import torch
 import warnings
 from torch.func import functional_call
-from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit_test
-from Oneclass_XLSR_lit_wepe import ALDA_OneClass_Wepe_Lit
+from Oneclass_XLSR_lit_data_aug import ALDA_OneClass_AugImmunity_Lit
 
 warnings.filterwarnings("ignore")
 
@@ -14,7 +13,6 @@ torch.set_float32_matmul_precision("medium")
 torch.backends.cudnn.benchmark = True
 
 from get_true_dataset import get_true
-from models.SLSforASVspoof.lit_model_teacher import ALDA_teacher_lit
 from myutils.tools import color_print, to_list
 
 from config import get_cfg_defaults
@@ -60,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_saved_filename", type=str,default="best-{epoch}-{val-eer:.4f}")
     parser.add_argument("--ckpt_train_model_task",type=str,default=None)
     parser.add_argument("--loss_fn",type=str,default="all_loss")
-    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/dim=128_test/data_aug_SafeRawAugmentor(noise_intensity=0.1, mask_ratio=0.1)_5:1/1228_baseline_multi_centroid_14:52")
+    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/dim=128_test/data_aug_SafeRawAugmentor(noise_intensity=0.1, mask_ratio=0.1)_5:1/1228_baseline")
     args = parser.parse_args()
     # args.gpu=[0,1]
     if args.seed != 42:
@@ -80,7 +78,7 @@ if __name__ == "__main__":
     )
 
     # print(str(dict(cfg)))
-    model = ALDA_OneClass_AugImmunity_Lit_test()
+    model = ALDA_OneClass_AugImmunity_Lit()
     callbacks = make_callbacks(args, cfg)
 
     if args.ckpt_saved_filename:
@@ -109,9 +107,6 @@ if __name__ == "__main__":
     # log_dir = '/home/zyz/data/test_model_save/1-df-audio/MultiView/ASV2019_LA/version_1'
     color_print(f"logger path : {log_dir}")
     
-
-    # if args.test == 0 and args.clear_log:
-    #     clear_folder(log_dir)
     # args.test = True
     if not args.test:
         # ckpt_path = get_ckpt_path(log_dir, theme="last") if args.resume else None

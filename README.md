@@ -21,18 +21,13 @@ Actually, the package versions are not strict. Maybe the latest versions of torc
 
 One can run the following commands to train or test our multiview model.
 ```bash
-python train.py --gpu 0 --cfg 'MultiView/ASV2019_LA'  -v 0;\
-python train.py --gpu 0 --cfg 'MultiView/ASV2019_LA'  -t 1 -v 0;\
 
-python train.py --gpu 0 --cfg 'MultiView/ASV2021_LA'  -v 0;\
-python train.py --gpu 0 --cfg 'MultiView/ASV2021_LA'  -t 1 -v 0;\
 
-python train.py --gpu 0 --cfg 'MultiView/ASV2021_inner'  -v 0;\
-python train.py --gpu 0 --cfg 'MultiView/ASV2021_inner'  -t 1 -v 0;\
-python train.py --gpu 0 --cfg 'MultiView/ASV2021_inner'  -t 1 -v 0 --test_noise 1 --test_noise_level 20 --test_noise_type 'bg';\
-
-python train.py --gpu 0 --cfg 'MultiView/MLAAD_cross_lang'  -v 0;\
-python train.py --gpu 0 --cfg 'MultiView/MLAAD_cross_lang'  -t 1 -v 0;\
+python train_controlled_XLSR_oneclass.py --gpu 0 --cfg 'MultiView/ASV2021_LA'  -v 0;\
+stage1：得到一个最佳ckpt：oneclass.ckpt,将该ckpt作为下一步的初始权重，同时确保加载了centroid参数。
+python train_controlled_XLSR_oneclass_data_aug_detach_noisy.py --gpu 0 --cfg 'MultiView/ASV2021_LA'  -v 0;\
+stage2：得到一个最佳ckpt：data_aug_bestmodel.ckpt,作为knn_bank.py中的模型来提取特征memorybank（该文件夹中已保存至"memory_bank_xlsr_best_0890.pt"，直接运行。
+ps:所有代码已经适配5090计算方式，但是3090环境可能无法正常运行
 ```
 
 ## Acknowledgements

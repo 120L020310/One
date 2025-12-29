@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_saved_filename", type=str,default="best-{epoch}-{val-auc:.4f}")
     parser.add_argument("--ckpt_train_model_task",type=str,default=None)
     parser.add_argument("--loss_fn",type=str,default="all_loss")
-    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/dim=128_test/1227_XLSR_oneclass_post_std")
+    parser.add_argument("--root_dir",type=str,default="/home/zyz/data/dim=128_test/1227_XLSR_oneclass_aoc")
     args = parser.parse_args()
     # args.gpu=[0,1]
     if args.seed != 42:
@@ -116,10 +116,6 @@ if __name__ == "__main__":
     # args.test = True
     if not args.test:
         ckpt_path = get_ckpt_path(log_dir, theme="last") if args.resume else None
-        # ckpt_path = "/home/zyz/data/test_controlled_ex/1220_XLSR_projection_final/MultiView/ASV2021_LA/version_0/checkpoints/best-epoch=3-val-auc=0.8765.ckpt"
-        # checkpoint = torch.load(ckpt_path, map_location="cpu")
-        # state_dict = checkpoint["state_dict"]
-        # missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
         val_dl = dl.val
         if args.test_as_val != 999:
             val_dl = to_list(dl.test)[args.test_as_val]
